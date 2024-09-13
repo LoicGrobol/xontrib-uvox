@@ -1,6 +1,8 @@
-MIT License
+Licence
+=======
 
-Copyright (c) 2023, xontrib-vox
+Copyright © 2023, xontrib-vox
+Copyright © 2024, L. Grobol
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

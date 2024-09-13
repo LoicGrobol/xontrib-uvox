@@ -1,4 +1,5 @@
 """Vox tests"""
+
 import io
 import os
 import pathlib
@@ -6,47 +7,43 @@ import stat
 import subprocess as sp
 import sys
 import types
-from typing import TYPE_CHECKING
+from typing import Callable
 
 import pytest
-from py.path import local
+from pytest_subprocess import FakeProcess
+from xonsh.built_ins import XonshSession
 from xonsh.platform import ON_WINDOWS
 from xonsh.pytest.tools import skip_if_on_conda, skip_if_on_msys
 
-from xontrib.voxapi import Vox, _get_vox_default_interpreter
-
-if TYPE_CHECKING:
-    from pytest_subprocess import FakeProcess
-
-    from xontrib.vox import VoxHandler
+from xontrib.uvox import UvoxHandler
+from xontrib.uvoxapi import Uvox, _get_vox_default_interpreter
 
 
 @pytest.fixture
-def venv_home(tmpdir, xession):
+def venv_home(tmpdir: pathlib.Path, xession: XonshSession) -> pathlib.Path:
     """Path where VENVs are created"""
     home = tmpdir / "venvs"
-    home.ensure_dir()
+    home.mkdir()
     # Set up an isolated venv home
+    assert xession.env is not None
     xession.env["VIRTUALENV_HOME"] = str(home)
     return home
 
 
 @pytest.fixture
-def venv_proc(fake_process: "FakeProcess", venv_home):
+def venv_proc(fake_process: "FakeProcess"):
     def version_handle(process):
-        ver = str(sys.version).split()[0]
-        process.stdout.write(f"Python {ver}")
+        process.stdout.write(f"Python {sys.version}")
 
     def venv_handle(process):
-        env_path = local(process.args[3])
-        (env_path / "lib").ensure_dir()
+        env_path = pathlib.Path(process.args[3])
+        env_path.mkdir()
         bin_path = env_path / ("Scripts" if ON_WINDOWS else "bin")
-
-        (bin_path / "python").write("", ensure=True)
-        (bin_path / "python.exe").write("", ensure=True)
-        for file in bin_path.listdir():
-            st = os.stat(str(file))
-            os.chmod(str(file), st.st_mode | stat.S_IEXEC)
+        bin_path.mkdir()
+        (bin_path / "python").write_text("")
+        (bin_path / "python.exe").write_text("")
+        for file in bin_path.iterdir():
+            file.chmod(file.stat().st_mode | stat.S_IEXEC)
 
         for pip_name in ["pip", "pip.exe"]:
             fake_process.register(
@@ -76,18 +73,20 @@ def venv_proc(fake_process: "FakeProcess", venv_home):
 
 
 @pytest.fixture
-def vox(xession, load_xontrib, venv_proc) -> "VoxHandler":
-    """vox Alias function"""
+def uvox(xession: XonshSession, load_xontrib: Callable[[str], None]) -> "UvoxHandler":
+    """uvox Alias function"""
 
     # Set up enough environment for xonsh to function
-    xession.env["PWD"] = os.getcwd()
+    assert xession.env is not None
+    xession.env["PWD"] = str(pathlib.Path.cwd())
     xession.env["DIRSTACK_SIZE"] = 10
     xession.env["PATH"] = []
     xession.env["XONSH_SHOW_TRACEBACK"] = True
 
-    load_xontrib("vox")
-    vox = xession.aliases["vox"]
-    return vox
+    load_xontrib("uvox")
+    assert xession.aliases is not None
+    uvox = xession.aliases["uvox"]
+    return uvox
 
 
 @pytest.fixture
@@ -115,17 +114,15 @@ def test_vox_flow(xession, vox, record_events, venv_home):
     Creates a virtual environment, gets it, enumerates it, and then deletes it.
     """
 
-    record_events(
-        "vox_on_create", "vox_on_delete", "vox_on_activate", "vox_on_deactivate"
-    )
+    record_events("vox_on_create", "vox_on_delete", "vox_on_activate", "vox_on_deactivate")
 
     vox(["create", "spam"])
     assert stat.S_ISDIR(venv_home.join("spam").stat().mode)
     assert record_events.last == ("vox_on_create", "spam")
 
-    ve = vox.vox["spam"]
-    assert ve.env == str(venv_home.join("spam"))
-    assert os.path.isdir(ve.bin)
+    ve = vox.get_env("spam")
+    assert ve.root == venv_home / "spam"
+    assert ve.bin.is_dir()
 
     assert "spam" in vox.vox
     assert "spam" in list(vox.vox)
@@ -227,21 +224,18 @@ def test_crud_subdir(xession, venv_home, venv_proc):
     Creates a virtual environment, gets it, enumerates it, and then deletes it.
     """
 
-    vox = Vox(force_removals=True)
+    vox = Uvox()
     vox.create("spam/eggs")
     assert stat.S_ISDIR(venv_home.join("spam", "eggs").stat().mode)
 
-    ve = vox["spam/eggs"]
-    assert ve.env == str(venv_home.join("spam", "eggs"))
-    assert os.path.isdir(ve.bin)
-
-    assert "spam/eggs" in vox
-    assert "spam" not in vox
+    ve = vox.get_env("spam/eggs")
+    assert ve.root == str(venv_home.join("spam", "eggs"))
+    assert ve.bin.is_dir()
 
     # assert 'spam/eggs' in list(vox)  # This is NOT true on Windows
-    assert "spam" not in list(vox)
+    assert "spam" not in vox.list_envs()
 
-    del vox["spam/eggs"]
+    vox.del_env("spam/eggs", silent=True)
 
     assert not venv_home.join("spam", "eggs").check()
 
@@ -252,7 +246,7 @@ def test_crud_path(xession, tmpdir, venv_proc):
     """
     tmp = str(tmpdir)
 
-    vox = Vox(force_removals=True)
+    vox = Uvox(force_removals=True)
     vox.create(tmp)
     assert stat.S_ISDIR(tmpdir.join("lib").stat().mode)
 
@@ -273,7 +267,7 @@ def test_reserved_names(xession, tmpdir):
     """
     xession.env["VIRTUALENV_HOME"] = str(tmpdir)
 
-    vox = Vox()
+    vox = Uvox()
     with pytest.raises(ValueError):
         if ON_WINDOWS:
             vox.create("Scripts")
@@ -318,7 +312,7 @@ def test_autovox(xession, vox, a_venv, load_xontrib, registered):
 
 @pytest.fixture
 def create_venv(venv_proc):
-    vox = Vox(force_removals=True)
+    vox = Uvox(force_removals=True)
 
     def wrapped(name):
         vox.create(name)
@@ -343,7 +337,7 @@ def a_venv(create_venv):
 
 
 @pytest.fixture
-def patched_cmd_cache(xession, vox, monkeypatch):
+def patched_cmd_cache(xession, uvox, monkeypatch):
     cc = xession.commands_cache
 
     def no_change(self, *_):
@@ -363,12 +357,11 @@ _HELP_OPTS = {
     "-h",
     "--help",
 }
-_PY_BINS = {"/bin/python2", "/bin/python3"}
+_PY_BINS = {"/bin/python3"}
 
 _VOX_NEW_OPTS = {
     "--ssp",
     "--system-site-packages",
-    "--without-pip",
 }.union(_HELP_OPTS)
 
 if ON_WINDOWS:
@@ -397,7 +390,7 @@ class TestVoxCompletions:
         "args, positionals, opts",
         [
             (
-                "vox",
+                "uvox",
                 {
                     "delete",
                     "new",
@@ -413,12 +406,8 @@ class TestVoxCompletions:
                     "activate",
                     "enter",
                     "create",
-                    "project-get",
-                    "project-set",
                     "runin",
                     "runin-all",
-                    "toggle-ssp",
-                    "wipe",
                     "upgrade",
                 },
                 _HELP_OPTS,
@@ -430,8 +419,6 @@ class TestVoxCompletions:
                     {
                         "-a",
                         "--activate",
-                        "--wp",
-                        "--without-pip",
                         "-p",
                         "--interpreter",
                         "-i",
@@ -441,8 +428,6 @@ class TestVoxCompletions:
                         "--link-project",
                         "-r",
                         "--requirements",
-                        "-t",
-                        "--temp",
                         "--prompt",
                     }
                 ),

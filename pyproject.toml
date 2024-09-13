@@ -1,8 +1,8 @@
 
 [project]
-name = "xontrib-vox"
+name = "xontrib-uvox"
 version = "0.0.1"
-license = {file = "LICENSE"}
+license = { file = "LICENCE.md" }
 description = "Python virtual environment manager for xonsh."
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -12,71 +12,47 @@ classifiers = [
     "Topic :: System :: System Shells",
     "Topic :: Terminals",
 ]
-requires-python = ">=3.8"
-dependencies = ["xonsh>=0.12.5"]
-authors = [
-    { name = "xontrib-vox", email = "no@no.no" },
-]
+requires-python = ">=3.11"
+dependencies = ["xonsh>=0.12.5", "uv"]
+authors = [{ name = "L. Grobol", email = "loic.grobol@gmail.com" }]
 [project.readme]
 file = "README.md"
 content-type = "text/markdown"
 
 
-
-
-
 [project.urls]
-
-Homepage = "https://github.com/xonsh/xontrib-vox"
-Documentation = "https://github.com/xonsh/xontrib-vox/blob/master/README.md"
-Code = "https://github.com/xonsh/xontrib-vox"
-"Issue tracker" = "https://github.com/xonsh/xontrib-vox/issues"
-
-
-
+Homepage = "https://github.com/LoicGrobol/xontrib-uvox"
+Documentation = "https://github.com/LoicGrobol/xontrib-uvox/blob/main/README.md"
+Code = "https://github.com/LoicGrobol/xontrib-uvox"
+"Issue tracker" = "https://github.com/LoicGrobol/xontrib-uvox/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "pytest-subprocess"]
 
-
-
 [build-system]
-requires = [
-    "setuptools>=62",
-    "wheel",               # for bdist package distribution
-]
+requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
-[tool.setuptools]
 
+[tool.setuptools]
 packages = ["xontrib"]
-package-dir = {xontrib = "xontrib"}
+package-dir = { xontrib = "xontrib" }
 
 platforms = ["any"]
 include-package-data = false
-[tool.setuptools.package-data]
 
+[tool.setuptools.package-data]
 xontrib = ["*.xsh"]
 
+[tool.ruff]
+line-length = 100
+select = ["A", "B", "C90", "E", "F", "N", "NPY", "PT", "PTH", "PYI", "S", "W"]
 
+[tool.ruff.per-file-ignores]
+"tests/**/*.py" = [
+    "S101", # asserts allowed in tests
+    "ARG",  # Unused function args -> fixtures nevertheless are functionally relevant
+]
 
-[tool.isort]
-profile = "black"
-
-[tool.black]
-include = '\.pyi?$'
-force-exclude = '''
-/(
-    \.git
-  | \.hg
-  | \.mypy_cache
-  | \.pytest_cache
-  | \.tox
-  | \.vscode
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-  | disk-cache.sqlite3
-)/
-'''
+[tool.mypy]
+check_untyped_defs = true
+warn_unreachable = true

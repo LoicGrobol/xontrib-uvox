@@ -1,2 +1,2 @@
 def test_it_loads(load_xontrib):
-    load_xontrib("vox")
+    load_xontrib("uvox")
