@@ -1,4 +1,5 @@
 """Python virtual environment manager for xonsh."""
+
 import subprocess
 from typing import Annotated, Sequence
 
@@ -25,12 +26,6 @@ def py_interpreter_path_completer(xsh, **_):
     for _, (path, is_alias) in xsh.commands_cache.all_commands.items():
         if not is_alias and ("/python" in path or "/pypy" in path):
             yield path
-
-
-_venv_option = Annotated[
-    str | None,
-    xcli.Arg(metavar="ENV", nargs="?", completer=venv_names_completer),
-]
 
 
 class UvoxHandler(xcli.ArgParserAlias):
@@ -64,7 +59,7 @@ class UvoxHandler(xcli.ArgParserAlias):
 
         # We ignore type here because argparse's exit is NoReturn instead of -> None, quite
         # annoyingly
-        parser.exit = soft_exit # type: ignore
+        parser.exit = soft_exit  # type: ignore
 
         return parser
 
@@ -72,68 +67,12 @@ class UvoxHandler(xcli.ArgParserAlias):
         if param == "interpreter":
             action.completer = py_interpreter_path_completer
 
-    def new(
-        self,
-        name: Annotated[str, xcli.Arg(metavar="ENV")],
-        interpreter: "str|None" = None,
-        system_site_packages=False,
-        activate=False,
-        packages: Annotated[Sequence[str], xcli.Arg(nargs="*")] = (),
-        requirements: Annotated[Sequence[str], xcli.Arg(action="append")] = (),
-        prompt: str | None = None,
-    ):
-        """Create a virtual environment in $VIRTUALENV_HOME with python3's ``venv``.
-
-        Parameters
-        ----------
-        name : str
-            Virtual environment name
-        interpreter: -p, --interpreter
-            Python interpreter used to create the virtual environment.
-            Can be configured via the $VOX_DEFAULT_INTERPRETER environment variable.
-        system_site_packages : --system-site-packages, --ssp
-            If True, the system (global) site-packages dir is available to
-            created environments.
-        activate : -a, --activate
-            Activate the newly created virtual environment.
-        packages: -i, --install
-            Install one or more packages after the environment is created
-        requirements: -r, --requirements
-            Path to a requirements files
-        prompt: --prompt
-            Provides an alternative prompt prefix for this environment.
-        """
-
-        self.out(f"Creating environment {name}…")
-
-        self.uvox.create(
-            name,
-            system_site_packages=system_site_packages,
-            interpreter=interpreter,
-            prompt=prompt,
-        )
-
-        if packages:
-            self.runin(name, ["uv", "pip", "install", *packages])
-
-        if requirements:
-
-            def _generate_args():
-                for req in requirements:
-                    yield "-r"
-                    yield req
-
-            self.runin(name, ["uv", "pip", "install", *_generate_args()])
-
-        if activate:
-            self.activate(name)
-            self.out(f"Environment {name!r} created and activated.\n")
-        else:
-            self.out(f'Environment {name!r} created. Activate it with "uvox activate {name}".\n')
-
     def activate(
         self,
-        name: _venv_option = None,
+        name: Annotated[
+            str | None,
+            xcli.Arg(metavar="ENV", nargs="?", completer=venv_names_completer),
+        ] = None,
     ):
         """Activate a virtual environment.
 
@@ -166,6 +105,25 @@ class UvoxHandler(xcli.ArgParserAlias):
             )
         self.uvox.deactivate()
 
+    def info(
+        self,
+        name: Annotated[
+            str | None,
+            xcli.Arg(metavar="ENV", nargs="?", completer=venv_names_completer),
+        ] = None,
+    ):
+        """Prints the path for the supplied env
+
+        Parameters
+        ----------
+        venv
+            name of the venv
+        """
+        if name is None:
+            self.out(self.uvox.active())
+        else:
+            self.out(self.uvox.get_env(name))
+
     def list(self):
         """List available virtual environments."""
 
@@ -177,6 +135,40 @@ class UvoxHandler(xcli.ArgParserAlias):
             )
         for e in envs:
             self.out(e)
+
+    def new(
+        self,
+        name: Annotated[str, xcli.Arg(metavar="ENV")],
+        interpreter: str | None = None,
+        system_site_packages=False,
+        prompt: str | None = None,
+    ):
+        """Create a virtual environment in $VIRTUALENV_HOME with python3's ``venv``.
+
+        Parameters
+        ----------
+        name : str
+            Virtual environment name
+        interpreter: -p, --interpreter
+            Python interpreter used to create the virtual environment.
+            Can be configured via the $VOX_DEFAULT_INTERPRETER environment variable.
+        system_site_packages : --system-site-packages, --ssp
+            If True, the system (global) site-packages dir is available to
+            created environments.
+        prompt: --prompt
+            Provides an alternative prompt prefix for this environment.
+        """
+
+        self.out(f"Creating environment {name}…")
+
+        self.uvox.create(
+            name,
+            system_site_packages=system_site_packages,
+            interpreter=interpreter,
+            prompt=prompt,
+        )
+
+        self.out(f'Environment {name!r} created. Activate it with "uvox activate {name}"')
 
     def remove(
         self,
@@ -263,19 +255,7 @@ class UvoxHandler(xcli.ArgParserAlias):
                 self.err(e)
         self.parser.exit(errors)
 
-    def info(self, name: _venv_option = None):
-        """Prints the path for the supplied env
-
-        Parameters
-        ----------
-        venv
-            name of the venv
-        """
-        if name is None:
-            self.out(self.uvox.active())
-        else:
-            self.out(self.uvox.get_env(name))
-
 
 def _load_xontrib_(xsh: XonshSession, **_):
+    assert xsh.aliases is not None
     xsh.aliases["uvox"] = UvoxHandler(threadable=False)
