@@ -1,29 +1,24 @@
-<p align="center">
-Python virtual environment manager for xonsh shell.
-</p>
+UVox
+====
 
-<p align="center">
-If you like the idea click ⭐ on the repo and <a href="https://twitter.com/intent/tweet?text=Nice%20xontrib%20for%20the%20xonsh%20shell!&url=https://github.com/xonsh/xontrib-vox" target="_blank">tweet</a>.
-</p>
-
+A [uv](https://github.com/astral-sh/uv)-based Python virtual environment manager for the xonsh shell.
 
 ## Installation
 
 To install use pip:
 
 ```bash
-xpip install xontrib-vox
-# or: xpip install -U git+https://github.com/xonsh/xontrib-vox
+xpip install xontrib-uvox
 ```
 
 ## Usage
 
-This package contains three xontribs:
-* `vox` - Python virtual environment manager for xonsh.
-* `autovox` - Manages automatic activation of virtual environments.
-* `voxapi` - API for Vox, the Python virtual environment manager for xonsh.
+This package contains two xontribs:
 
-### vox
+- `uvox` - Python virtual environment manager for xonsh.
+- `voxapi` - API for Uvox
+
+### uvox
 
 Python virtual environment manager for xonsh.
 
@@ -32,37 +27,20 @@ xontrib load vox
 vox --help
 ```
 
-### autovox
-
-Manages automatic activation of virtual environments.
+### uvoxapi
 
 ```bash
-xontrib load autovox
+xontrib load uvoxapi
 ```
 
-This coordinates multiple automatic vox policies and deals with some of the
-mechanics of venv searching and chdir handling.
+UVox defines several events related to the life cycle of virtual environments:
 
-This provides no interface for end users.
-
-Developers should look at XSH.builtins.events.autovox_policy
-
-### voxapi
-
-API for Vox, the Python virtual environment manager for xonsh.
-
-```bash
-xontrib load voxapi
-```
-
-Vox defines several events related to the life cycle of virtual environments:
-
-* `vox_on_create(env: str) -> None`
-* `vox_on_activate(env: str, path: pathlib.Path) -> None`
-* `vox_on_deactivate(env: str, path: pathlib.Path) -> None`
-* `vox_on_delete(env: str) -> None`
+* `uvox_on_create(env: str) -> None`
+* `uvox_on_activate(env: str, path: pathlib.Path) -> None`
+* `uvox_on_deactivate(env: str, path: pathlib.Path) -> None`
+* `uvox_on_delete(env: str) -> None`
 
 
 ## Credits
 
-This package was created with [xontrib template](https://github.com/xonsh/xontrib-template).
+This package is a fork of [xontrib-vox](https://github.com/xonsh/xontrib-vox).

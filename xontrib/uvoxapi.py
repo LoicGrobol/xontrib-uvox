@@ -1,7 +1,7 @@
 """
-API for Vox, the Python virtual environment manager for xonsh.
+API for UVox
 
-Vox defines several events related to the life cycle of virtual environments:
+UVox defines several evets related to the life cycle of virtual environments:
 
 * ``uvox_on_create(env: str) -> None``
 * ``uvox_on_activate(env: str, path: pathlib.Path) -> None``
