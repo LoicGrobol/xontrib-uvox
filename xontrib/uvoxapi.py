@@ -168,9 +168,9 @@ class Uvox:
             interpreter = _get_vox_default_interpreter()
             logging.info(f"Using Interpreter: {interpreter}")
 
-        try:
+        if "/" in name:
             env_path = pathlib.Path(name)
-        except TypeError:
+        else:
             env_path = self.venvdir / name
 
         cmd = [

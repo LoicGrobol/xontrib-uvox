@@ -29,7 +29,7 @@ def py_interpreter_path_completer(xsh, **_):
 
 
 class UvoxHandler(xcli.ArgParserAlias):
-    """Vox is a virtual environment manager for xonsh."""
+    """UVox is a UV-backed virtual environment manager for xonsh."""
 
     def build(self):
         """lazily called during dispatch"""
@@ -44,22 +44,6 @@ class UvoxHandler(xcli.ArgParserAlias):
         parser.add_command(self.info)
         parser.add_command(self.runin)
         parser.add_command(self.runin_all)
-
-        # Ugly patch around both xonsh and argparse, because letting argaprse call its own exit will
-        # send a sys.exit that kills the parent xonsh.
-        # FIXME: this would be fixed by moving away from ArgParserAlias…
-        def soft_exit(status: int = 0, message: str | None = None):
-            if status == 0:
-                return
-            if message is not None:
-                self.err(message)
-            else:
-                message = ""
-            raise self.Error(message=message, errno=status)
-
-        # We ignore type here because argparse's exit is NoReturn instead of -> None, quite
-        # annoyingly
-        parser.exit = soft_exit  # type: ignore
 
         return parser
 

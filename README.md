@@ -16,15 +16,15 @@ xpip install xontrib-uvox
 This package contains two xontribs:
 
 - `uvox` - Python virtual environment manager for xonsh.
-- `voxapi` - API for Uvox
+- `uvoxapi` - API for Uvox
 
 ### uvox
 
 Python virtual environment manager for xonsh.
 
 ```bash
-xontrib load vox
-vox --help
+xontrib load uvox
+uvox --help
 ```
 
 ### uvoxapi
