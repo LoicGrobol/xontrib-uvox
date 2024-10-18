@@ -268,7 +268,7 @@ class Uvox:
         if (ve := self.active()) is None:
             raise NoEnvironmentActiveError("No environment currently active.")
 
-        ve_name = XSH.env.pop(["VIRTUAL_ENV"])
+        ve_name = XSH.env.pop("VIRTUAL_ENV")
 
         XSH.env.update(self.old_env)
         self.old_env = dict()
