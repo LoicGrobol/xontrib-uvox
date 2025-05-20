@@ -16,8 +16,7 @@ import logging
 import os.path
 import pathlib
 import shutil
-import subprocess as sp
-import sys
+import subprocess
 from dataclasses import dataclass
 from textwrap import dedent
 from typing import Any, Self
@@ -102,16 +101,6 @@ class VirtualEnvironment:
         return cls(root=root_dir, bin=bin_dir)
 
 
-def _get_vox_default_interpreter():
-    """Return the interpreter set by the $VOX_DEFAULT_INTERPRETER if set else sys.executable"""
-    default = "python3"
-    if default in XSH.commands_cache:
-        default = XSH.commands_cache.locate_binary(default)
-    else:
-        default = sys.executable
-    return XSH.env.get("VOX_DEFAULT_INTERPRETER", default)
-
-
 class EnvironmentInUseError(Exception):
     """The given environment is currently activated, and the operation cannot be performed."""
 
@@ -164,9 +153,14 @@ class Uvox:
         prompt: str
             Provides an alternative prompt prefix for this environment.
         """
-        if interpreter is None:
-            interpreter = _get_vox_default_interpreter()
+        options = ["--seed"]
+        if (interpreter := XSH.env.get("VOX_DEFAULT_INTERPRETER", interpreter)) is not None:
+            options.extend(["--python", interpreter])
             logging.info(f"Using Interpreter: {interpreter}")
+        if prompt is not None:
+            options.extend(["--prompt", prompt])
+        if system_site_packages:
+            options.append("--system-site-packages")
 
         if "/" in name:
             env_path = pathlib.Path(name)
@@ -176,19 +170,13 @@ class Uvox:
         cmd = [
             "uv",
             "venv",
-            "--seed",
-            "--python",
-            interpreter,
+            *options,
             str(env_path),
         ]
-        if prompt is not None:
-            cmd.extend(["--prompt", prompt])
-        if system_site_packages:
-            cmd.append("--system-site-packages")
 
         logging.debug(f"Running {cmd}")
 
-        sp.check_call(cmd)
+        subprocess.check_call(cmd)
 
         events.uvox_on_create.fire(name=name)
 

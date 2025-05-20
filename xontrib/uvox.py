@@ -64,7 +64,7 @@ class UvoxHandler(xcli.ArgParserAlias):
         ----------
         name
             The environment to activate.
-            ENV can be either a name from the venvs shown by ``uvox list``
+            ENV can be either a name from the venvs shown by `uvox list`
             or the path to an arbitrary venv
         """
 
@@ -127,7 +127,7 @@ class UvoxHandler(xcli.ArgParserAlias):
         system_site_packages=False,
         prompt: str | None = None,
     ):
-        """Create a virtual environment in $VIRTUALENV_HOME with python3's ``venv``.
+        """Create a virtual environment in $VIRTUALENV_HOME with uv.
 
         Parameters
         ----------
