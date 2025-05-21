@@ -1,11 +1,11 @@
 """
 API for UVox
 
-UVox defines several evets related to the life cycle of virtual environments:
+UVox defines several events related to the life cycle of virtual environments:
 
 * ``uvox_on_create(env: str) -> None``
 * ``uvox_on_activate(env: str, path: pathlib.Path) -> None``
-* ``uvox_on_deactivate(env: str, path: pathlib.Path) -> None``
+* ``uvox_on_deactivate(path: pathlib.Path) -> None``
 * ``uvox_on_delete(env: str) -> None``
 """
 
@@ -16,16 +16,15 @@ import logging
 import os.path
 import pathlib
 import shutil
-import subprocess
+import subprocess  # noqa: S404  # We good
 from dataclasses import dataclass
 from textwrap import dedent
-from typing import Any, Self
+from typing import Any, Self, Sequence
 
+from uv import find_uv_bin
 from xonsh.built_ins import XSH
-
 from xonsh.events import events
 from xonsh.platform import ON_POSIX, ON_WINDOWS
-
 
 events.doc(
     "uvox_on_create",
@@ -154,8 +153,13 @@ class Uvox:
             Provides an alternative prompt prefix for this environment.
         """
         options = ["--seed"]
-        if (interpreter := XSH.env.get("VOX_DEFAULT_INTERPRETER", interpreter)) is not None:
-            options.extend(["--python", interpreter])
+        if interpreter is None:
+            if (interpreter := XSH.env.get("VOX_DEFAULT_INTERPRETER")) is not None:
+                options.extend(["--python", interpreter])
+                logging.info(
+                    f"Using default interpreter: {interpreter} (from $VOX_DEFAULT_INTERPRETER)"
+                )
+        else:
             logging.info(f"Using Interpreter: {interpreter}")
         if prompt is not None:
             options.extend(["--prompt", prompt])
@@ -168,7 +172,7 @@ class Uvox:
             env_path = self.venvdir / name
 
         cmd = [
-            "uv",
+            find_uv_bin(),
             "venv",
             *options,
             str(env_path),
@@ -176,7 +180,7 @@ class Uvox:
 
         logging.debug(f"Running {cmd}")
 
-        subprocess.check_call(cmd)
+        subprocess.check_call(cmd)  # noqa: S603  # är ok
 
         events.uvox_on_create.fire(name=name)
 
@@ -211,7 +215,7 @@ class Uvox:
             "VIRTUAL_ENV": name_or_path,
         }
 
-    def list_envs(self) -> list[str]:
+    def list_envs(self) -> Sequence[str]:
         """List available virtual environments found in $VIRTUALENV_HOME."""
         return [config_file.parent.name for config_file in self.venvdir.glob("*/pyvenv.cfg")]
 
@@ -251,17 +255,16 @@ class Uvox:
 
     def deactivate(self):
         """
-        Deactivate the active virtual environment. Returns its name.
+        Deactivate the active virtual environment.
         """
         if (ve := self.active()) is None:
             raise NoEnvironmentActiveError("No environment currently active.")
 
-        ve_name = XSH.env.pop("VIRTUAL_ENV")
-
+        XSH.env.pop("VIRTUAL_ENV")
         XSH.env.update(self.old_env)
         self.old_env = dict()
 
-        events.uvox_on_deactivate.fire(name=ve_name, path=ve.root)
+        events.uvox_on_deactivate.fire(path=ve.root)
 
     def del_env(self, name_or_path: str, silent: bool = False):
         """

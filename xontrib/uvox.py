@@ -186,6 +186,7 @@ class UvoxHandler(xcli.ArgParserAlias):
                 self.out(f'Environment "{name}" removed.')
         self.out()
 
+    # TODO: isn't there a uv facility for that?
     def runin(
         self,
         venv: Annotated[

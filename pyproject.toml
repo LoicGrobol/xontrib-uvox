@@ -1,7 +1,7 @@
 
 [project]
 name = "xontrib-uvox"
-version = "0.0.4"
+version = "0.0.5"
 license = { file = "LICENCE.md" }
 description = "Python virtual environment manager for xonsh."
 classifiers = [
@@ -14,7 +14,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = ["xonsh>=0.12.5", "uv"]
-authors = [{ name = "L. Grobol", email = "loic.grobol@gmail.com" }]
+authors = [{ name = "Morgan Grobol", email = "morgan.grobol@tuta.com" }]
 [project.readme]
 file = "README.md"
 content-type = "text/markdown"
