@@ -26,10 +26,7 @@ jobs:
         with:
           cache-suffix: main-py${{ matrix.python-version }}
           enable-cache: true
-      - name: Create base venv
-        run: uv venv --python ${{ matrix.python-version }}
       - name: Run tox
         run: |
-          source .venv/bin/activate
-          uv pip install tox tox-gh-actions tox-uv
+          uv tool install tox --with tox-gh-actions --with tox-uv --python ${{ matrix.python-version }}
           tox -- -vv --durations=0
