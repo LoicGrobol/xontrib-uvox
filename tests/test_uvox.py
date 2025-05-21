@@ -1,5 +1,6 @@
 """Vox tests"""
 
+import copy
 import io
 import os
 import pathlib
@@ -7,49 +8,80 @@ import stat
 import subprocess
 import sys
 import types
-from typing import Callable
+from typing import Callable, Self, cast
 
 import pytest
 from xonsh.built_ins import XonshSession
+from xonsh.environ import Env
 from xonsh.platform import ON_WINDOWS
 from xonsh.pytest.tools import skip_if_on_conda, skip_if_on_msys
+from xonsh.tools import EnvPath
 
 from xontrib_uvox import UvoxHandler
 from xontrib_uvox.uvoxapi import Uvox
 
 
-# FIXME: this is fishy, it should also return a session intead of modifying the current one
+class XonshSessionSafe(XonshSession):
+    env: Env
+
+    @property
+    def path(self) -> EnvPath:
+        res = self.env["PATH"]
+        if not isinstance(res, EnvPath):
+            raise ValueError(
+                f'Something is wrong with your Xonsh session: `${{...}}["PATH"]` is {res!r}'
+            )
+        return res
+
+    @path.setter
+    def path(self, paths: list[str] | EnvPath):
+        self.env["PATH"] = EnvPath(paths)
+
+    @classmethod
+    def from_xession(cls: type[Self], xession: XonshSession) -> Self:
+        res = copy.copy(xession)
+        res.__class__ = cls
+        return cast(Self, res)
+
+
 @pytest.fixture
-def venv_home(tmp_path: pathlib.Path, xession: XonshSession) -> pathlib.Path:
+def xession_safe(xession):
+    return XonshSessionSafe.from_xession(xession=xession)
+
+
+# FIXME: this is fishy, it should also return a session intead of modifying the current one and we
+# could type it as safe session.
+@pytest.fixture
+def venv_home(tmp_path: pathlib.Path, xession_safe: XonshSessionSafe) -> pathlib.Path:
     """Path where VENVs are created"""
     home = tmp_path / "venvs"
     home.mkdir()
     # Set up an isolated venv home
-    assert xession.env is not None
-    xession.env["VIRTUALENV_HOME"] = str(home)
+    xession_safe.env["VIRTUALENV_HOME"] = str(home)
     return home
 
 
+# FIXME: this is fishy, it should also return a session intead of modifying the current one and we
+# could type it as safe session.
 @pytest.fixture
-def uvox(xession: XonshSession, load_xontrib: Callable[[str], None]) -> UvoxHandler:
+def uvox(xession_safe: XonshSessionSafe, load_xontrib: Callable[[str], None]) -> UvoxHandler:
     """uvox Alias function"""
 
     # Set up enough environment for xonsh to function
-    assert xession.env is not None
-    xession.env["PWD"] = str(pathlib.Path.cwd())
-    xession.env["DIRSTACK_SIZE"] = 10
-    xession.env["PATH"] = []
-    xession.env["XONSH_SHOW_TRACEBACK"] = True
+    xession_safe.env["PWD"] = str(pathlib.Path.cwd())
+    xession_safe.env["DIRSTACK_SIZE"] = 10
+    xession_safe.path = []
+    xession_safe.env["XONSH_SHOW_TRACEBACK"] = True
 
     load_xontrib("uvox")
-    assert xession.aliases is not None
-    uvox = xession.aliases["uvox"]
+    assert xession_safe.aliases is not None
+    uvox = xession_safe.aliases["uvox"]
     return uvox
 
 
 class Listener:
-    def __init__(self, xession: XonshSession):
-        self.xession = xession
+    def __init__(self, xession_safe: XonshSessionSafe):
+        self.xession = xession_safe
         self.last = None
 
     def listener(self, name):
@@ -60,23 +92,24 @@ class Listener:
 
     def __call__(self, *events: str):
         for name in events:
-            event = getattr(self.xession.builtins.events, name)
+            event = getattr(cast(types.SimpleNamespace, self.xession.builtins).events, name)
             event(self.listener(name))
 
 
 @pytest.fixture
-def record_events(xession: XonshSession) -> Listener:
-    return Listener(xession)
+def record_events(xession_safe: XonshSessionSafe) -> Listener:
+    return Listener(xession_safe)
 
 
 def test_uvox_flow(
-    xession: XonshSession, uvox: UvoxHandler, record_events: Listener, venv_home: pathlib.Path
+    xession_safe: XonshSessionSafe,
+    uvox: UvoxHandler,
+    record_events: Listener,
+    venv_home: pathlib.Path,
 ):
     """
     Creates a virtual environment, gets it, enumerates it, and then deletes it.
     """
-
-    assert xession.env is not None
 
     record_events("uvox_on_create", "uvox_on_delete", "uvox_on_activate", "uvox_on_deactivate")
 
@@ -92,7 +125,7 @@ def test_uvox_flow(
 
     # activate
     uvox(["activate", "spam"])
-    virtualenv_path_var = xession.env["VIRTUAL_ENV"]
+    virtualenv_path_var = xession_safe.env["VIRTUAL_ENV"]
     assert isinstance(virtualenv_path_var, str)
     assert len(virtualenv_path_var) > 0
     assert pathlib.Path(virtualenv_path_var) == uvox.uvox.get_env("spam").root
@@ -118,7 +151,7 @@ def test_uvox_flow(
 
     # deactivate
     uvox(["deactivate"])
-    assert "VIRTUAL_ENV" not in xession.env
+    assert "VIRTUAL_ENV" not in xession_safe.env
     assert record_events.last == ("uvox_on_deactivate", ve.root)
 
     # runin
@@ -134,34 +167,48 @@ def test_uvox_flow(
     assert record_events.last == ("uvox_on_delete", "spam")
 
 
-def test_activate_non_uv_venv(xession: XonshSession, uvox: Uvox, record_events, venv_home):
+def test_activate_non_uv_venv(
+    monkeypatch: pytest.MonkeyPatch,
+    xession_safe: XonshSessionSafe,
+    uvox: UvoxHandler,
+    record_events,
+    venv_home: pathlib.Path,
+):
     """
     Create a virtual environment using Python's built-in venv module
     (not in VIRTUALENV_HOME) and verify that vox can activate it correctly.
     """
-    xession.env["PATH"] = []
+    xession_safe.env["PATH"] = []
 
     record_events("uvox_on_activate", "uvox_on_deactivate")
 
-    with venv_home.as_cwd():
+    with monkeypatch.context() as m:
+        m.chdir(venv_home)
         venv_dirname = "venv"
         subprocess.run([sys.executable, "-m", "venv", venv_dirname])  # noqa: S603
-        uvox.activate(venv_dirname)
-        vxv = uvox.get_env(venv_dirname)
+        uvox(["activate", venv_dirname])
+        vxv = uvox.uvox.get_env(venv_dirname)
 
-    env = xession.env
-    assert os.path.isabs(vxv.bin)
-    assert env["PATH"][0] == vxv.bin
-    assert os.path.isabs(vxv.env)
-    assert env["VIRTUAL_ENV"] == vxv.env
+    assert vxv.root.is_absolute()
+    assert vxv.bin.is_absolute()
+
+    env = xession_safe.env
+
+    assert pathlib.Path(cast(str, xession_safe.path[0])) == vxv.bin
+
+    virtualenv_path_var = env["VIRTUAL_ENV"]
+    assert isinstance(virtualenv_path_var, str)
+    assert len(virtualenv_path_var) > 0
+    assert pathlib.Path(virtualenv_path_var) == vxv.root
+
     assert record_events.last == (
         "uvox_on_activate",
         venv_dirname,
-        str(pathlib.Path(str(venv_home)) / venv_dirname),
+        venv_home / venv_dirname,
     )
 
     uvox(["deactivate"])
-    assert not env["PATH"]
+    assert not xession_safe.path
     assert "VIRTUAL_ENV" not in env
     assert record_events.last == (
         "uvox_on_deactivate",
@@ -171,18 +218,18 @@ def test_activate_non_uv_venv(xession: XonshSession, uvox: Uvox, record_events, 
 
 @skip_if_on_msys
 @skip_if_on_conda
-def test_path(xession: XonshSession, vox, a_venv):
+def test_path(xession_safe: XonshSessionSafe, vox, a_venv):
     """
     Test to make sure Vox properly activates and deactivates by examining $PATH
     """
-    oldpath = list(xession.env["PATH"])
+    oldpath = list(xession_safe.path)
     vox(["activate", a_venv.basename])
 
-    assert oldpath != xession.env["PATH"]
+    assert oldpath != xession_safe.path
 
     vox.deactivate()
 
-    assert oldpath == xession.env["PATH"]
+    assert oldpath == xession_safe.path
 
 
 def test_crud_subdir(venv_home):
@@ -227,7 +274,7 @@ def test_crud_path(tmp_path):
 
 @skip_if_on_msys
 @skip_if_on_conda
-def test_reserved_names(xession: XonshSession, tmp_path):
+def test_reserved_names(xession_safe: XonshSessionSafe, tmp_path):
     """
     Tests that reserved words are disallowed.
     """
@@ -248,7 +295,7 @@ def test_reserved_names(xession: XonshSession, tmp_path):
 
 
 @pytest.mark.parametrize("registered", [False, True])
-def test_autovox(xession: XonshSession, vox, a_venv, load_xontrib, registered):
+def test_autovox(xession_safe: XonshSessionSafe, vox, a_venv, load_xontrib, registered):
     """
     Tests that autovox works
     """
@@ -303,7 +350,7 @@ def a_venv(create_venv):
 
 
 @pytest.fixture
-def patched_cmd_cache(xession: XonshSession, uvox, monkeypatch):
+def patched_cmd_cache(xession_safe: XonshSessionSafe, uvox, monkeypatch):
     cc = xession.commands_cache
 
     def no_change(self, *_):
@@ -340,7 +387,7 @@ _VOX_RM_OPTS = {"-f", "--force"}.union(_HELP_OPTS)
 
 class TestVoxCompletions:
     @pytest.fixture
-    def check(self, check_completer, xession: XonshSession, vox):
+    def check(self, check_completer, xession_safe: XonshSessionSafe, vox):
         def wrapped(cmd, positionals, options=None):
             for k in list(xession.completers):
                 if k != "alias":

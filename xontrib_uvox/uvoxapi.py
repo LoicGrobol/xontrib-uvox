@@ -22,7 +22,6 @@ from textwrap import dedent
 from typing import Any, Self, Sequence, cast
 
 from uv import find_uv_bin
-from xonsh.built_ins import XSH
 from xonsh.events import events
 from xonsh.platform import ON_POSIX, ON_WINDOWS
 
