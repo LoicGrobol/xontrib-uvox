@@ -118,8 +118,8 @@ class Uvox:
 
     Makes use of the VirtualEnvironment namedtuple:
 
-    1. ``env``: The full path to the environment
-    2. ``bin``: The full path to the bin/Scripts directory of the environment
+    1. ``root``: The full path to the environment
+    2. ``bin``: The full path to the bin directory of the environment
     """
 
     def __init__(self):
@@ -139,7 +139,7 @@ class Uvox:
         interpreter: str | None = None,
         system_site_packages: bool = False,
         prompt: str | None = None,
-    ):
+    ) -> pathlib.Path:
         """Create a virtual environment in `$VIRTUALENV_HOME` with uv.
 
         Parameters
@@ -186,6 +186,8 @@ class Uvox:
         subprocess.check_call(cmd)  # noqa: S603  # är ok
 
         events.uvox_on_create.fire(name=name)
+
+        return env_path
 
     def get_env(self, name_or_path: str | pathlib.Path) -> VirtualEnvironment:
         """Get information about a virtual environment.

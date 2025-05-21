@@ -144,14 +144,17 @@ class UvoxHandler(xcli.ArgParserAlias):
 
         self.out(f"Creating environment {name}…")
 
-        self.uvox.create(
+        env_dir = self.uvox.create(
             name,
             system_site_packages=system_site_packages,
             interpreter=interpreter,
             prompt=prompt,
         )
 
-        self.out(f'Environment {name!r} created. Activate it with "uvox activate {name}"')
+        self.out(
+            f"Environment {name!r} created in {env_dir.resolve()}"
+            f' Activate it with "uvox activate {name}"'
+        )
 
     def remove(
         self,
@@ -238,4 +241,3 @@ class UvoxHandler(xcli.ArgParserAlias):
                 errors = True
                 self.err(e)
         self.parser.exit(errors)
-

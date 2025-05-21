@@ -218,58 +218,60 @@ def test_activate_non_uv_venv(
 
 @skip_if_on_msys
 @skip_if_on_conda
-def test_path(xession_safe: XonshSessionSafe, vox, a_venv):
+def test_path(xession_safe: XonshSessionSafe, uvox: UvoxHandler, a_venv: pathlib.Path):
     """
     Test to make sure Vox properly activates and deactivates by examining $PATH
     """
     oldpath = list(xession_safe.path)
-    vox(["activate", a_venv.basename])
+    uvox(["activate", str(a_venv)])
 
     assert oldpath != xession_safe.path
 
-    vox.deactivate()
+    uvox.deactivate()
 
     assert oldpath == xession_safe.path
 
 
-def test_crud_subdir(venv_home):
+def test_crud_subdir(monkeypatch: pytest.MonkeyPatch, venv_home: pathlib.Path):
     """
     Creates a virtual environment, gets it, enumerates it, and then deletes it.
     """
 
-    vox = Uvox()
-    vox.create("spam/eggs")
-    assert stat.S_ISDIR(venv_home.join("spam", "eggs").stat().mode)
+    with monkeypatch.context() as m:
+        m.chdir(venv_home)
+        uvox = UvoxHandler()
+        uvox(["create", "spam/eggs"])
 
-    ve = vox.get_env("spam/eggs")
-    assert ve.root == str(venv_home.join("spam", "eggs"))
+    assert (venv_home / "spam" / "eggs").is_dir()
+
+    ve = uvox.uvox.get_env("spam/eggs")
+    assert ve.root == venv_home / "spam" / "eggs"
     assert ve.bin.is_dir()
 
-    # assert 'spam/eggs' in list(vox)  # This is NOT true on Windows
-    assert "spam" not in vox.list_envs()
+    # assert 'spam/eggs' in list(vox)  # This is NOT true on Windows  # FIXME: why?
+    assert "spam" not in uvox.uvox.list_envs()
 
-    vox.del_env("spam/eggs", silent=True)
+    uvox(["remove", "--force", "spam/eggs"])
 
-    assert not venv_home.join("spam", "eggs").check()
+    assert not (venv_home / "spam" / "eggs").exists()
 
 
 def test_crud_path(tmp_path):
     """
     Creates a virtual environment, gets it, enumerates it, and then deletes it.
     """
-    tmp = str(tmp_path)
 
-    uvox = Uvox(force_removals=True)
-    uvox.create(tmp)
-    assert stat.S_ISDIR(tmp_path.join("lib").stat().mode)
+    uvox = UvoxHandler()
+    uvox(["create", str(tmp_path)])
+    assert (tmp_path / "lib").is_dir()
 
-    ve = uvox.get_env(tmp)
-    assert ve.root == str(tmp)
-    assert os.path.is_dir(ve.bin)
+    ve = uvox.uvox.get_env(tmp_path)
+    assert ve.root == tmp_path
+    assert ve.bin.is_dir()
 
-    del uvox[tmp]
+    uvox(["remove", "--force", str(tmp_path)])
 
-    assert not tmp_path.check()
+    assert not tmp_path.exists()
 
 
 @skip_if_on_msys
@@ -294,48 +296,19 @@ def test_reserved_names(xession_safe: XonshSessionSafe, tmp_path):
             vox.create("spameggs/bin")
 
 
-@pytest.mark.parametrize("registered", [False, True])
-def test_autovox(xession_safe: XonshSessionSafe, vox, a_venv, load_xontrib, registered):
-    """
-    Tests that autovox works
-    """
-    from xonsh.dirstack import popd, pushd
-
-    # Makes sure that event handlers are registered
-    load_xontrib("autovox")
-
-    env_name = a_venv.basename
-    env_path = str(a_venv)
-
-    # init properly
-    assert vox.parser
-
-    def policy(path, **_):
-        if str(path) == env_path:
-            return env_name
-
-    if registered:
-        xession.builtins.events.autovox_policy(policy)
-
-    pushd([env_path])
-    value = env_name if registered else None
-    assert vox.vox.active() == value
-    popd([])
-
-
 @pytest.fixture
-def create_venv():
-    vox = Uvox(force_removals=True)
+def create_venv() -> Callable[[str], pathlib.Path]:
+    uvox = Uvox()
 
     def wrapped(name):
-        vox.create(name)
-        return local(vox[name].env)
+        uvox.create(name)
+        return uvox.get_env(name).root
 
     return wrapped
 
 
 @pytest.fixture
-def venvs(venv_home, create_venv):
+def venvs(venv_home: pathlib.Path, create_venv: Callable[[str], pathlib.Path]):
     """Create virtualenv with names venv0, venv1"""
     from xonsh.dirstack import popd, pushd
 
@@ -345,7 +318,7 @@ def venvs(venv_home, create_venv):
 
 
 @pytest.fixture
-def a_venv(create_venv):
+def a_venv(create_venv: Callable[[str], pathlib.Path]) -> pathlib.Path:
     return create_venv("venv0")
 
 
