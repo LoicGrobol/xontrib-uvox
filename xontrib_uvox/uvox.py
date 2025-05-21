@@ -4,11 +4,10 @@ import subprocess
 from typing import Annotated, Sequence
 
 import xonsh.cli_utils as xcli
-from xonsh.built_ins import XonshSession
 from xonsh.completers.path import complete_dir
 from xonsh.platform import ON_WINDOWS
 
-import xontrib.uvoxapi as uvoxapi
+import xontrib_uvox.uvoxapi as uvoxapi
 
 __all__ = ()
 
@@ -240,7 +239,3 @@ class UvoxHandler(xcli.ArgParserAlias):
                 self.err(e)
         self.parser.exit(errors)
 
-
-def _load_xontrib_(xsh: XonshSession, **_):
-    assert xsh.aliases is not None
-    xsh.aliases["uvox"] = UvoxHandler(threadable=False)

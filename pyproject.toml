@@ -2,11 +2,10 @@
 [project]
 name = "xontrib-uvox"
 version = "0.0.5"
-license = { file = "LICENCE.md" }
+license = "MIT"
 description = "Python virtual environment manager for xonsh."
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Topic :: System :: Shells",
     "Topic :: System :: System Shells",
@@ -27,15 +26,18 @@ Code = "https://github.com/LoicGrobol/xontrib-uvox"
 "Issue tracker" = "https://github.com/LoicGrobol/xontrib-uvox/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-subprocess"]
+dev = ["pytest>=7.0"]
+
+[project.entry-points."xonsh.xontribs"]
+uvox = "xontrib_uvox"
 
 [build-system]
 requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["xontrib"]
-package-dir = { xontrib = "xontrib" }
+packages = ["xontrib_uvox"]
+package-dir = { xontrib_uvox = "xontrib_uvox" }
 
 platforms = ["any"]
 include-package-data = false

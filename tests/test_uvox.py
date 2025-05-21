@@ -10,13 +10,12 @@ import types
 from typing import Callable
 
 import pytest
-from pytest_subprocess import FakeProcess
 from xonsh.built_ins import XonshSession
 from xonsh.platform import ON_WINDOWS
 from xonsh.pytest.tools import skip_if_on_conda, skip_if_on_msys
 
-from xontrib.uvox import UvoxHandler
-from xontrib.uvoxapi import Uvox
+from xontrib_uvox import UvoxHandler
+from xontrib_uvox.uvoxapi import Uvox
 
 
 # FIXME: this is fishy, it should also return a session intead of modifying the current one

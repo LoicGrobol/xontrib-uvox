@@ -26,6 +26,8 @@ from xonsh.built_ins import XSH
 from xonsh.events import events
 from xonsh.platform import ON_POSIX, ON_WINDOWS
 
+from xontrib_uvox.utils import get_env_safe
+
 events.doc(
     "uvox_on_create",
     dedent(
