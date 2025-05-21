@@ -19,14 +19,14 @@ import shutil
 import subprocess  # noqa: S404  # We good
 from dataclasses import dataclass
 from textwrap import dedent
-from typing import Any, Self, Sequence
+from typing import Any, Self, Sequence, cast
 
 from uv import find_uv_bin
 from xonsh.built_ins import XSH
 from xonsh.events import events
 from xonsh.platform import ON_POSIX, ON_WINDOWS
 
-from xontrib_uvox.utils import get_env_safe
+from xontrib_uvox.utils import get_env_safe, get_str_env_var, get_path_var
 
 events.doc(
     "uvox_on_create",
@@ -124,12 +124,14 @@ class Uvox:
     """
 
     def __init__(self):
-        if not XSH.env.get("VIRTUALENV_HOME"):
+        env = get_env_safe()
+        if (venv_home_var := get_str_env_var("VIRTUALENV_HOME", env=env)) is None:
             home_path = pathlib.Path.home()
             self.venvdir = (home_path / ".virtualenvs").resolve()
-            XSH.env["VIRTUALENV_HOME"] = str(self.venvdir)
+            # FIXME: is that right?
+            env["VIRTUALENV_HOME"] = str(self.venvdir)
         else:
-            self.venvdir = pathlib.Path(XSH.env["VIRTUALENV_HOME"])
+            self.venvdir = pathlib.Path(venv_home_var)
         self.old_env: dict[str, Any] = dict()
 
     def create(
@@ -156,7 +158,7 @@ class Uvox:
         """
         options = ["--seed"]
         if interpreter is None:
-            if (interpreter := XSH.env.get("VOX_DEFAULT_INTERPRETER")) is not None:
+            if (interpreter := get_str_env_var("VOX_DEFAULT_INTERPRETER")) is not None:
                 options.extend(["--python", interpreter])
                 logging.info(
                     f"Using default interpreter: {interpreter} (from $VOX_DEFAULT_INTERPRETER)"
@@ -212,8 +214,8 @@ class Uvox:
         """Return an environment dict correspon"""
         ve = self.get_env(name_or_path)
         return {
-            **XSH.env.detype(),
-            "PATH": os.path.pathsep.join([str(ve.bin), *XSH.env["PATH"]]),
+            **get_env_safe().detype(),
+            "PATH": os.path.pathsep.join([str(ve.bin), *cast(list[str], get_env_safe()["PATH"])]),
             "VIRTUAL_ENV": name_or_path,
         }
 
@@ -226,7 +228,7 @@ class Uvox:
 
         Returns None if no environment is active.
         """
-        if (env_path_or_name := XSH.env.get("VIRTUAL_ENV")) is None:
+        if (env_path_or_name := get_str_env_var("VIRTUAL_ENV")) is None:
             return None
 
         return self.get_env(env_path_or_name)
@@ -244,13 +246,14 @@ class Uvox:
         if self.active() is not None:
             self.deactivate()
 
-        env = XSH.env
-        self.old_env = {"PATH": copy.copy(env["PATH"].paths)}
+        env = get_env_safe()
+        path_var = get_path_var(env=env)
+        self.old_env = {"PATH": copy.copy(path_var.paths)}
         if (python_home := env.pop("PYTHONHOME", None)) is not None:
             self.old_env["PYTHONHOME"] = python_home
 
         ve = self.get_env(name)
-        env["PATH"].prepend(ve.bin)
+        path_var.prepend(ve.bin)
         env["VIRTUAL_ENV"] = ve.root
 
         events.uvox_on_activate.fire(name=name, path=ve.root)
@@ -262,8 +265,9 @@ class Uvox:
         if (ve := self.active()) is None:
             raise NoEnvironmentActiveError("No environment currently active.")
 
-        XSH.env.pop("VIRTUAL_ENV")
-        XSH.env.update(self.old_env)
+        env = get_env_safe()
+        env.pop("VIRTUAL_ENV")
+        env.update(self.old_env)
         self.old_env = dict()
 
         events.uvox_on_deactivate.fire(path=ve.root)
@@ -281,6 +285,7 @@ class Uvox:
         if (active := self.active()) is not None and active.root.resolve() == env_root:
             raise EnvironmentInUseError(f'The "{name_or_path}" environment is currently active.')
 
+        # TODO: make these more prompt-toolkit-y
         if not silent:
             print(f"The directory {env_root}")
             print("and all of its content will be deleted.")
