@@ -134,7 +134,7 @@ class UvoxHandler(xcli.ArgParserAlias):
             Virtual environment name
         interpreter: -p, --interpreter
             Python interpreter used to create the virtual environment.
-            Can be configured via the $VOX_DEFAULT_INTERPRETER environment variable.
+            Can be configured via the $UVOX_DEFAULT_INTERPRETER environment variable.
         system_site_packages : --system-site-packages, --ssp
             If True, the system (global) site-packages dir is available to
             created environments.
@@ -142,7 +142,7 @@ class UvoxHandler(xcli.ArgParserAlias):
             Provides an alternative prompt prefix for this environment.
         """
 
-        self.out(f"Creating environment {name}…")
+        self.out(f"Creating environment {name}")
 
         env_dir = self.uvox.create(
             name,

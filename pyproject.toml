@@ -1,7 +1,7 @@
 
 [project]
 name = "xontrib-uvox"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT"
 description = "Python virtual environment manager for xonsh."
 classifiers = [

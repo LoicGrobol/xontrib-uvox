@@ -148,7 +148,7 @@ class Uvox:
             Virtual environment name
         interpreter: str
             Python interpreter used to create the virtual environment.
-            Can be configured via the $VOX_DEFAULT_INTERPRETER environment variable.
+            Can be configured via the $UVOX_DEFAULT_INTERPRETER environment variable.
         system_site_packages : bool
             If True, the system (global) site-packages dir is available to
             created environments.
@@ -157,13 +157,15 @@ class Uvox:
         """
         options = ["--seed"]
         if interpreter is None:
-            if (interpreter := get_str_env_var("VOX_DEFAULT_INTERPRETER")) is not None:
+            if (interpreter := get_str_env_var("UVOX_DEFAULT_INTERPRETER")) is not None:
                 options.extend(["--python", interpreter])
                 logging.info(
-                    f"Using default interpreter: {interpreter} (from $VOX_DEFAULT_INTERPRETER)"
+                    f"Using default interpreter: {interpreter} (from $UVOX_DEFAULT_INTERPRETER)"
                 )
+            logging.info("Using uv's default interpreter")
         else:
-            logging.info(f"Using Interpreter: {interpreter}")
+            options.extend(["--python", interpreter])
+            logging.info(f"Using interpreter {interpreter}")
         if prompt is not None:
             options.extend(["--prompt", prompt])
         if system_site_packages:
