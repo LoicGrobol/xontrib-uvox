@@ -1,3 +1,5 @@
+**This repository has migrated to Codeberg: <https://codeberg.org/mgrobol/xontrib-uvox> please report issues and PR there**
+
 UVox
 ====
 
