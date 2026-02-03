@@ -2,9 +2,7 @@
 
 import copy
 import io
-import os
 import pathlib
-import stat
 import subprocess
 import sys
 import types
@@ -13,7 +11,6 @@ from typing import Callable, Self, cast
 import pytest
 from xonsh.built_ins import XonshSession
 from xonsh.environ import Env
-from xonsh.platform import ON_WINDOWS
 from xonsh.pytest.tools import skip_if_on_conda, skip_if_on_msys
 from xonsh.tools import EnvPath
 
