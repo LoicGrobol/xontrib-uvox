@@ -1,6 +1,5 @@
-from xonsh.environ import Env
+from xonsh.environ import Env, EnvPath
 from xonsh.built_ins import XonshSession, XSH
-from xonsh.tools import EnvPath
 
 
 def get_env_safe(xession: XonshSession = XSH) -> Env:
