@@ -15,22 +15,15 @@ xpip install xontrib-uvox
 
 This package contains two xontribs:
 
-- `uvox` - Python virtual environment manager for xonsh.
+- `uvox` - Python virtual environment manager for xonsh. This is probably what you want
 - `uvoxapi` - API for Uvox
 
-### uvox
+### Load uvox
 
-Python virtual environment manager for xonsh.
-
-```bash
-xontrib load uvox
-uvox --help
-```
-
-### uvoxapi
+Python virtual environment manager for xonsh. It will be autoloaded by xonsh once the package is installed and available as the command `uvox`, unless you disabled autoloading, in which case you will have to load it as
 
 ```bash
-xontrib load uvoxapi
+xontrib load -f xontrib_uvox
 ```
 
 UVox defines several events related to the life cycle of virtual environments:
